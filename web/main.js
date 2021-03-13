@@ -4,7 +4,11 @@
 
         const Graph = ForceGraph()(elem)
             .graphData(data)
+            .d3VelocityDecay(0.4)
             .nodeId('id')
+            .backgroundColor('#101020')
+            .linkColor(() => 'rgba(255,255,255,0.2)')
+            .linkWidth('weight')
             .nodeAutoColorBy('group')
             .nodeCanvasObject((node, ctx, globalScale) => {
                 const label = node.id;
@@ -16,7 +20,7 @@
                 const textWidth = ctx.measureText(label).width;
                 const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
 
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 1)';
                 ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
 
                 ctx.textAlign = 'center';
@@ -38,5 +42,6 @@
                 ctx.fillStyle = color;
                 const bckgDimensions = node.__bckgDimensions;
                 bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
-            });
+            })
+            .d3Force('link');
     });
