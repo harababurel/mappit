@@ -7,10 +7,9 @@ subcommands:
     name: "init"
     about: "Create database and populates subreddits"
     args:
-      - subbreddit_file:
-          short: subs
-          long: subreddit_file
-          value_name: FILE
+      - subreddit_file:
+          short: i
+          value_name: SUBREDDIT_FILE
           help: Path to file containing subreddits, one per line
           takes_value: true
           required: true
