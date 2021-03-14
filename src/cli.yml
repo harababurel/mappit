@@ -1,0 +1,46 @@
+name: Mappit
+version: "0.1.0"
+author: Sergiu Puscas <srg.pscs@gmail.com>
+about: Scrapes reddit and generates a subreddit graph based on similarity.
+subcommands:
+  - init:
+    name: "init"
+    about: "Create database and populates subreddits"
+    args:
+      - subbreddit_file:
+          short: subs
+          long: subreddit_file
+          value_name: FILE
+          help: Path to file containing subreddits, one per line
+          takes_value: true
+          required: true
+  - graph:
+    name: "graph"
+    about: "Build the subreddit graph"
+    args:
+      - out:
+          short: out
+          value_name: FILE.json
+          help: Output file (defaults to "web/graph.json")
+          takes_value: true
+          required: true
+  - scrape:
+    name: "scrape"
+    about: "Scrape subreddits for posts"
+    args:
+      - max_pages:
+          long: max_pages
+          value_name: INT
+          help: Max number of pages for each subreddit
+          takes_value: true
+          required: true
+args:
+  - db:
+      long: db
+      value_name: db
+      help: SQLite3 database file
+      takes_value: true
+      required: true
+settings:
+  - SubcommandRequiredElseHelp
+  - ColorAuto

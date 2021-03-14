@@ -1,4 +1,4 @@
-    fetch('subreddit_graph.json').then(res => res.json()).then(data => {
+    fetch('graph.json').then(res => res.json()).then(data => {
         console.log(data);
         const elem = document.getElementById('graph');
 

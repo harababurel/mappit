@@ -3,6 +3,9 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 #![allow(unused_results)]
+#[macro_use]
+extern crate clap;
+use clap::App;
 use rayon::prelude::*;
 use roux::Subreddit;
 extern crate pretty_env_logger;
@@ -24,8 +27,9 @@ use tokio;
 extern crate edit_distance;
 use edit_distance::edit_distance;
 
-const MAX_PAGES: u32 = 10;
+const MAX_PAGES: u32 = 50;
 const MAX_RESULTS_PER_PAGE: u32 = 1000;
+const GRAPH_PATH: &str = "web/graph.json";
 
 fn create_db(path: &str) -> rusqlite::Result<rusqlite::Connection> {
     let db = Connection::open(path)?;
@@ -181,11 +185,14 @@ fn build_graph(db: &rusqlite::Connection) -> rusqlite::Result<ForceGraph> {
         for _ in 0..10 {
             match pq.peek() {
                 Some((y_id, weight)) => {
-                    graph.links.push(Link {
-                        source: x.id.clone(),
-                        target: y_id.to_string(),
-                        weight: f64::log10(*weight as f64) / 5.0,
-                    });
+                    // add overlapping edges
+                    for _ in 0..std::cmp::max(1, (*weight) / 10) {
+                        graph.links.push(Link {
+                            source: x.id.clone(),
+                            target: y_id.to_string(),
+                            weight: f64::log10(*weight as f64) / 5.0,
+                        });
+                    }
                 }
                 None => {
                     break;
@@ -312,7 +319,7 @@ async fn update_subreddit_size(
     Ok(())
 }
 
-async fn add_recent_posts_to_db(db: &rusqlite::Connection) -> rusqlite::Result<()> {
+async fn add_recent_posts_to_db(db: &rusqlite::Connection, max_pages: u32) -> rusqlite::Result<()> {
     let mut stmt = db.prepare(
         "SELECT id, name, subscribers FROM subreddits ORDER BY subscribers DESC LIMIT 200",
     )?;
@@ -332,10 +339,10 @@ async fn add_recent_posts_to_db(db: &rusqlite::Connection) -> rusqlite::Result<(
         let subreddit = roux::Subreddit::new(&sr.name);
         let mut after: Option<String> = None;
 
-        for page in 0..MAX_PAGES {
+        for page in 0..max_pages {
             info!(
                 "Retrieving page {}/{} of r/{}",
-                page, MAX_PAGES, subreddit.name
+                page, max_pages, subreddit.name
             );
 
             let mut options = roux::util::FeedOption::new();
@@ -409,18 +416,37 @@ fn calculate_similarities(
 async fn main() {
     pretty_env_logger::init();
 
-    let db = create_db("mappit200.db").expect("Could not create db connection");
-    // add_subreddits_to_db("data/top200", &db).await;
-    // update_subreddit_size(&db, false)
-    //     .await
-    //     .expect("could not update subreddit size");
+    let yaml = load_yaml!("cli.yml");
+    let matches = App::from_yaml(yaml).get_matches();
 
-    // add_recent_posts_to_db(&db)
-    //     .await
-    //     .expect("could not add recent posts to db");
+    let db_file = matches.value_of("db").expect("No database provided (--db $PATH_TO_DB)");
+    let db = create_db(db_file).expect("Could not connect to database");
 
-    let graph = build_graph(&db).expect("could not build graph");
+    if let Some(matches) = matches.subcommand_matches("init") {
+        let subreddit_file = matches.value_of("subreddit_file").unwrap();
+        add_subreddits_to_db(subreddit_file, &db).await;
 
-    let js = serde_json::to_string(&graph).expect("could not serialize graph to json");
-    fs::write("web/subreddit_graph.json", js).expect("could not write json to file");
+        // This should never be needed anymore
+        // update_subreddit_size(&db, false)
+        //     .await
+        //     .expect("could not update subreddit size");
+    }
+
+
+    if let Some(matches) = matches.subcommand_matches("scrape") {
+        let max_pages: u32 = match matches.value_of("max_pages") {
+            Some(val) => val.parse().unwrap_or(MAX_PAGES),
+            None => MAX_PAGES,
+        };
+
+        add_recent_posts_to_db(&db, max_pages)
+            .await
+            .expect("could not add recent posts to db");
+    }
+
+    if let Some(matches) = matches.subcommand_matches("graph") {
+        let graph = build_graph(&db).expect("Could not build graph.");
+        let js = serde_json::to_string(&graph).expect("Could not serialize graph to JSON.");
+        fs::write(GRAPH_PATH, js).expect(&format!("Could not write JSON to '{}'", GRAPH_PATH));
+    }
 }
