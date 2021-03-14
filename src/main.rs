@@ -320,9 +320,7 @@ async fn update_subreddit_size(
 }
 
 async fn add_recent_posts_to_db(db: &rusqlite::Connection, max_pages: u32) -> rusqlite::Result<()> {
-    let mut stmt = db.prepare(
-        "SELECT id, name, subscribers FROM subreddits",
-    )?;
+    let mut stmt = db.prepare("SELECT id, name, subscribers FROM subreddits")?;
     let subreddits: Vec<SubredditDb> = stmt
         .query_map(rusqlite::NO_PARAMS, |row| {
             Ok(SubredditDb {
@@ -342,7 +340,9 @@ async fn add_recent_posts_to_db(db: &rusqlite::Connection, max_pages: u32) -> ru
         for page in 0..max_pages {
             info!(
                 "Retrieving page {}/{} of r/{}",
-                page, max_pages, subreddit.name
+                page + 1,
+                max_pages,
+                subreddit.name
             );
 
             let mut options = roux::util::FeedOption::new();
@@ -419,7 +419,9 @@ async fn main() {
     let yaml = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml).get_matches();
 
-    let db_file = matches.value_of("db").expect("No database provided (--db $PATH_TO_DB)");
+    let db_file = matches
+        .value_of("db")
+        .expect("No database provided (--db $PATH_TO_DB)");
     let db = create_db(db_file).expect("Could not connect to database");
 
     if let Some(matches) = matches.subcommand_matches("init") {
@@ -431,7 +433,6 @@ async fn main() {
         //     .await
         //     .expect("could not update subreddit size");
     }
-
 
     if let Some(matches) = matches.subcommand_matches("scrape") {
         let max_pages: u32 = match matches.value_of("max_pages") {
