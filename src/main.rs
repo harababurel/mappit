@@ -144,7 +144,7 @@ fn build_graph(db: &rusqlite::Connection) -> rusqlite::Result<ForceGraph> {
         links: Vec::new(),
     };
 
-    db.prepare("SELECT id, name, subscribers FROM subreddits ORDER BY subscribers DESC LIMIT 200")?
+    db.prepare("SELECT id, name, subscribers FROM subreddits")?
         .query_map(rusqlite::NO_PARAMS, |row| {
             Ok(SubredditDb {
                 id: row.get(0)?,
@@ -321,7 +321,7 @@ async fn update_subreddit_size(
 
 async fn add_recent_posts_to_db(db: &rusqlite::Connection, max_pages: u32) -> rusqlite::Result<()> {
     let mut stmt = db.prepare(
-        "SELECT id, name, subscribers FROM subreddits ORDER BY subscribers DESC LIMIT 200",
+        "SELECT id, name, subscribers FROM subreddits",
     )?;
     let subreddits: Vec<SubredditDb> = stmt
         .query_map(rusqlite::NO_PARAMS, |row| {
